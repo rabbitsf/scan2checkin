@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Badge Printing — Check-In</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    #badge-wrap {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+      background: #e5e7eb;
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #badge-wrap img { width: 100%; display: block; }
+    #badge-wrap .placeholder-text { color: #9ca3af; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1>You're Checked In!</h1>
+      <p>Your visitor badge is being printed</p>
+    </div>
+    <div class="card-body">
+
+      <!-- Printer selection -->
+      <div id="printer-section">
+        <div id="printer-scanning" class="printer-chip">
+          <div class="dot"></div>
+          <span>Scanning for printers…</span>
+        </div>
+        <div id="printer-none" class="printer-chip err" style="display:none">
+          <div class="dot"></div>
+          <span>No printers found on network</span>
+        </div>
+        <div id="printer-select-wrap" style="display:none">
+          <label style="font-size:0.85rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Select printer:</label>
+          <select id="printer-select" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;background:#fff;margin-bottom:8px">
+          </select>
+        </div>
+        <button id="btn-rescan" class="btn btn-secondary btn-full" style="display:none;margin-bottom:8px" onclick="scanPrinters()">
+          Scan Again
+        </button>
+      </div>
+
+      <!-- Badge preview placeholder -->
+      <div id="badge-wrap">
+        <span class="placeholder-text">Generating badge…</span>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <button id="btn-print" class="btn btn-primary btn-full" disabled>
+        <span id="btn-label">Print Badge</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+
+      <button id="btn-done" class="btn btn-secondary btn-full mt-4" style="display:none">
+        ✓ Done — Check In Another Visitor
+      </button>
+
+      <div class="divider"></div>
+      <p class="text-muted text-center">If the badge does not print, please ask a staff member for assistance.</p>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const params  = new URLSearchParams(window.location.search);
+    const visitId = params.get('visit_id');
+    const statusEl      = document.getElementById('status');
+    const btnPrint      = document.getElementById('btn-print');
+    const btnLabel      = document.getElementById('btn-label');
+    const spinner       = document.getElementById('spinner');
+    const btnDone       = document.getElementById('btn-done');
+    const badgeWrap     = document.getElementById('badge-wrap');
+    const elScanning    = document.getElementById('printer-scanning');
+    const elNone        = document.getElementById('printer-none');
+    const elSelectWrap  = document.getElementById('printer-select-wrap');
+    const elSelect      = document.getElementById('printer-select');
+    const btnRescan     = document.getElementById('btn-rescan');
+
+    if (!visitId) {
+      setStatus('error', 'No visit ID found. Please start over.');
+      window.location.href = '/';
+    }
+
+    // ── Printer scan ──────────────────────────────────────────────────────────
+    async function scanPrinters() {
+      elScanning.style.display = 'flex';
+      elNone.style.display     = 'none';
+      elSelectWrap.style.display = 'none';
+      btnRescan.style.display  = 'none';
+      btnPrint.disabled = true;
+
+      try {
+        const resp = await fetch('/api/printers');
+        const data = await resp.json();
+        elScanning.style.display = 'none';
+
+        if (!data.printers || data.printers.length === 0) {
+          elNone.style.display = 'flex';
+          btnRescan.style.display = 'block';
+          setStatus('error', 'No printer found. Make sure your label printer is powered on and on the same Wi-Fi network.');
+          return;
+        }
+
+        // Populate select
+        elSelect.innerHTML = '';
+        data.printers.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.address;
+          opt.textContent = p.host;
+          elSelect.appendChild(opt);
+        });
+
+        elSelectWrap.style.display = 'block';
+        btnRescan.style.display = 'block';
+        btnPrint.disabled = false;
+        setStatus('', '');
+      } catch (err) {
+        elScanning.style.display = 'none';
+        elNone.style.display = 'flex';
+        btnRescan.style.display = 'block';
+        setStatus('error', 'Could not reach server. Please try again.');
+      }
+    }
+
+    // ── Load badge preview ────────────────────────────────────────────────────
+    async function loadBadgePreview() {
+      try {
+        const resp = await fetch(`/api/checkin/${encodeURIComponent(visitId)}`);
+        if (!resp.ok) return;
+        const visit = await resp.json();
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:24px;font-family:-apple-system,sans-serif;width:100%';
+        div.innerHTML = `
+          <div style="background:#1a56db;color:white;padding:12px 20px;font-size:1.4rem;font-weight:700">VISITOR</div>
+          <div style="padding:16px 20px;border:1px solid #e5e7eb;border-top:none">
+            <div style="font-size:1.6rem;font-weight:700;margin-bottom:8px">${esc(visit.full_name || '')}</div>
+            ${visit.visiting_whom ? `<div style="font-size:0.85rem;color:#6b7280;text-transform:uppercase;margin-top:8px">VISITING</div><div style="font-weight:600">${esc(visit.visiting_whom)}</div>` : ''}
+            ${visit.purpose       ? `<div style="font-size:0.85rem;color:#6b7280;text-transform:uppercase;margin-top:8px">PURPOSE</div><div style="font-weight:600">${esc(visit.purpose)}</div>` : ''}
+            <div style="font-size:0.85rem;color:#6b7280;margin-top:12px">${esc(visit.visit_date || '')}</div>
+          </div>`;
+        badgeWrap.innerHTML = '';
+        badgeWrap.appendChild(div);
+      } catch (_) {}
+    }
+
+    // ── Print ─────────────────────────────────────────────────────────────────
+    btnPrint.addEventListener('click', async () => {
+      const printerAddr = elSelect.value || '';
+      btnPrint.disabled = true;
+      spinner.style.display = 'block';
+      btnLabel.textContent = 'Printing…';
+      setStatus('info', 'Sending to printer…');
+
+      try {
+        const resp = await fetch('/api/print', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visit_id: visitId, printer_addr: printerAddr }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+          throw new Error(err.detail || 'Print failed');
+        }
+
+        const data = await resp.json();
+        setStatus('success', `Badge printed on ${data.printer_ip}. Welcome!`);
+        btnLabel.textContent = '✓ Printed!';
+        btnDone.style.display = 'block';
+      } catch (err) {
+        setStatus('error', `Print error: ${err.message}`);
+        btnPrint.disabled = false;
+        spinner.style.display = 'none';
+        btnLabel.textContent = 'Retry Print';
+      }
+    });
+
+    // ── Done button ───────────────────────────────────────────────────────────
+    btnDone.addEventListener('click', () => {
+      sessionStorage.removeItem('dl_fields');
+      window.location.href = '/';
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function setStatus(type, msg) {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = msg;
+      statusEl.style.display = msg ? 'block' : 'none';
+    }
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Init
+    scanPrinters();
+    loadBadgePreview();
+  </script>
+</body>
+</html>

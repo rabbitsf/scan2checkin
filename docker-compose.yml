@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      OCR_MOCK_MODE: ${OCR_MOCK_MODE:-false}
+      PRINTER_MODEL: ${PRINTER_MODEL:-QL-810W}
+      PRINTER_SUBNET: ${PRINTER_SUBNET:-}
+      GOOGLE_SHEET_ID: ${GOOGLE_SHEET_ID:-}
+      GOOGLE_CREDENTIALS_FILE: ${GOOGLE_CREDENTIALS_FILE:-/app/credentials/google_service_account.json}
+    volumes:
+      - ./credentials:/app/credentials:ro
+    # network_mode: host is required for mDNS printer discovery on LAN.
+    # When using host networking, the port mapping above is ignored;
+    # the backend will bind directly on port 8000 of the host.
+    # Uncomment the line below and comment out 'ports' if mDNS doesn't work:
+    # network_mode: host
+    restart: unless-stopped

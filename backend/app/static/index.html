@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Visitor Check-In</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1>Welcome</h1>
+      <p>Please scan the <strong>back</strong> of your driver's license</p>
+    </div>
+    <div class="card-body">
+
+      <div id="camera-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div id="guide">
+          <div class="guide-rect"></div>
+          <span class="guide-label">Point camera at the barcode on the back</span>
+        </div>
+      </div>
+
+      <button id="btn-capture" class="btn btn-primary btn-full" disabled>
+        <span id="btn-icon">📷</span>
+        <span id="btn-label">Start Camera</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+
+      <div id="status" class="status"></div>
+
+      <div class="divider"></div>
+      <p class="text-muted text-center">Having trouble? Ask a staff member for assistance.</p>
+    </div>
+  </div>
+
+  <script src="/js/camera.js"></script>
+</body>
+</html>

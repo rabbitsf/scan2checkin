@@ -1,6 +1,0 @@
-#!/bin/sh
-# Pre-commit hook: show HTML diff preview and require approval before committing.
-set -e
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-python3 "$SCRIPT_DIR/commit_preview.py"

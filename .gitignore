@@ -19,3 +19,6 @@ venv/
 
 # Docker
 *.log
+
+# Docs (AI guardrails, plans, project guides — local only)
+docs/
